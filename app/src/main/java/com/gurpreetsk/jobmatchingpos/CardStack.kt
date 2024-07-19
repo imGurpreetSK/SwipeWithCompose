@@ -52,7 +52,6 @@ fun CardStack(
         val frontCard = cards.firstOrNull()
         val stack = cards.drop(1)
 
-        val translationX = remember { Animatable(0f) }
         val rotationZ = remember { Animatable(0f) }
         val alpha = remember { Animatable(1f) }
 
@@ -79,7 +78,6 @@ fun CardStack(
                 .animateContentSize()
                 .padding(top = 16.dp)
                 .graphicsLayer {
-                    this.translationX = translationX.value
                     this.rotationZ = rotationZ.value
                     this.alpha = alpha.value
                 }
@@ -108,19 +106,10 @@ fun CardStack(
                             rotationZ.animateTo(FINAL_ROTATION_DEGREE.unaryMinus())
                         }
                         coroutineScope.launch {
-                            delay(100)
-                            translationX.animateTo(FINAL_TRANSLATION_VALUE.unaryMinus())
-                        }
-                        coroutineScope.launch {
-                            delay(200)
-                            alpha.snapTo(0f)
-                            translationX.snapTo(0f)
-                            rotationZ.snapTo(0f)
-                        }
-
-                        coroutineScope.launch {
-                            delay(500)
+                            delay(2000)
                             onAction(frontCard!!.id)
+                            alpha.snapTo(0f)
+                            rotationZ.snapTo(0f)
                         }
                     }
             ) {
@@ -129,30 +118,39 @@ fun CardStack(
 
             Spacer(modifier = Modifier.padding(8.dp))
 
+            val positiveButtonScaling = remember { Animatable(1f) }
             Box(
-                contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(64.dp)
-                    .background(Color.White.copy(alpha = 0.8f))
-                    .clickable {
-                        coroutineScope.launch {
-                            rotationZ.animateTo(FINAL_ROTATION_DEGREE)
-                        }
-                        coroutineScope.launch {
-                            delay(100)
-                            translationX.animateTo(FINAL_TRANSLATION_VALUE)
-                        }
-
-                        coroutineScope.launch {
-                            delay(500)
-                            onAction(frontCard!!.id)
-                            alpha.snapTo(0f)
-                            translationX.snapTo(0f)
-                            rotationZ.snapTo(0f)
-                        }
+                    .graphicsLayer {
+                        this.scaleX = positiveButtonScaling.value
+                        this.scaleY = positiveButtonScaling.value
                     }
             ) {
-                Text(text = "+")
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Color.White.copy(alpha = 0.8f))
+                        .clickable {
+                            coroutineScope.launch {
+                                rotationZ.animateTo(FINAL_ROTATION_DEGREE)
+                            }
+                            coroutineScope.launch {
+                                positiveButtonScaling.animateTo(1.3f)
+                            }
+
+                            coroutineScope.launch {
+                                delay(2000)
+                                onAction(frontCard!!.id)
+                                alpha.snapTo(0f)
+                                rotationZ.snapTo(0f)
+                                positiveButtonScaling.animateTo(1f)
+                            }
+                        }
+                ) {
+                    Text(text = "+")
+                }
             }
         }
     }

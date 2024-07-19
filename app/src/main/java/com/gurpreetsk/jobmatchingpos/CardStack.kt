@@ -2,28 +2,28 @@ package com.gurpreetsk.jobmatchingpos
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.gurpreetsk.jobmatchingpos.ui.theme.JobMatchingPocTheme
 import kotlinx.coroutines.delay
@@ -96,24 +96,69 @@ fun CardStack(
         Row(modifier = Modifier.align(Alignment.BottomCenter)) {
             val coroutineScope = rememberCoroutineScope()
 
+            val negativeButtonOffsetX = remember { Animatable(0f) }
+            val negativeButtonOffsetY = remember { Animatable(0f) }
+            val positiveButtonOffsetX = remember { Animatable(0f) }
+            val positiveButtonOffsetY = remember { Animatable(0f) }
+
             Box(
-                contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(64.dp)
-                    .background(Color.White.copy(alpha = 0.8f))
-                    .clickable {
-                        coroutineScope.launch {
-                            rotationZ.animateTo(FINAL_ROTATION_DEGREE.unaryMinus())
-                        }
-                        coroutineScope.launch {
-                            delay(2000)
-                            onAction(frontCard!!.id)
-                            alpha.snapTo(0f)
-                            rotationZ.snapTo(0f)
-                        }
+                    .offset {
+                        IntOffset(negativeButtonOffsetX.value.toInt(), negativeButtonOffsetY.value.toInt())
                     }
             ) {
-                Text(text = "-")
+                val density = LocalDensity.current
+                // All values in px.
+                val screenWidth = with (density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+                val screenHeight = with (density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
+                val topMargin = with (density) { 144.dp.toPx() }
+                val selfWidth = with (density) { 32.dp.toPx() }
+                val selfHeight = with (density) { 32.dp.toPx() }
+                val spacerWidth = with (density) { 8.dp.toPx() }
+
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Color.White.copy(alpha = 0.8f))
+                        .clickable {
+                            coroutineScope.launch {
+                                rotationZ.animateTo(FINAL_ROTATION_DEGREE.unaryMinus())
+                            }
+                            coroutineScope.launch {
+                                negativeButtonOffsetX.animateTo(selfWidth + spacerWidth)
+                            }
+                            coroutineScope.launch {
+                                negativeButtonOffsetY.animateTo(-(screenHeight - selfHeight - topMargin))
+                            }
+
+                            // Action
+                            coroutineScope.launch {
+                                delay(2000)
+                                onAction(frontCard!!.id)
+                                alpha.animateTo(0f)
+                            }
+
+                            // Cleanup
+                            coroutineScope.launch {
+                                delay(2000)
+                                rotationZ.animateTo(0f)
+                            }
+                            coroutineScope.launch {
+                                delay(2000)
+                                negativeButtonOffsetX.animateTo(0f)
+                                positiveButtonOffsetX.animateTo(0f)
+                            }
+                            coroutineScope.launch {
+                                delay(2000)
+                                negativeButtonOffsetY.animateTo(0f)
+                                positiveButtonOffsetY.animateTo(0f)
+                            }
+                        }
+                ) {
+                    Text(text = "-")
+                }
             }
 
             Spacer(modifier = Modifier.padding(8.dp))
@@ -122,11 +167,22 @@ fun CardStack(
             Box(
                 modifier = Modifier
                     .size(64.dp)
+                    .offset {
+                        IntOffset(positiveButtonOffsetX.value.toInt(), positiveButtonOffsetY.value.toInt())
+                    }
                     .graphicsLayer {
                         this.scaleX = positiveButtonScaling.value
                         this.scaleY = positiveButtonScaling.value
                     }
             ) {
+                val density = LocalDensity.current
+                // All values in px.
+                val screenWidth = with (density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+                val screenHeight = with (density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
+                val topMargin = with (density) { 144.dp.toPx() }
+                val selfWidth = with (density) { 32.dp.toPx() }
+                val selfHeight = with (density) { 32.dp.toPx() }
+
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
@@ -139,13 +195,38 @@ fun CardStack(
                             coroutineScope.launch {
                                 positiveButtonScaling.animateTo(1.3f)
                             }
+                            coroutineScope.launch {
+                                positiveButtonOffsetX.animateTo(selfWidth * 2)
+                            }
+                            coroutineScope.launch {
+                                positiveButtonOffsetY.animateTo(-(screenHeight - selfHeight - topMargin))
+                            }
 
+                            // Action
                             coroutineScope.launch {
                                 delay(2000)
                                 onAction(frontCard!!.id)
-                                alpha.snapTo(0f)
+                                alpha.animateTo(0f)
+                            }
+
+                            // Cleanup
+                            coroutineScope.launch {
+                                delay(2000)
                                 rotationZ.snapTo(0f)
+                            }
+                            coroutineScope.launch {
+                                delay(2000)
                                 positiveButtonScaling.animateTo(1f)
+                            }
+                            coroutineScope.launch {
+                                delay(2000)
+                                positiveButtonOffsetX.animateTo(0f)
+                                negativeButtonOffsetX.animateTo(0f)
+                            }
+                            coroutineScope.launch {
+                                delay(2000)
+                                positiveButtonOffsetY.animateTo(0f)
+                                negativeButtonOffsetY.animateTo(0f)
                             }
                         }
                 ) {

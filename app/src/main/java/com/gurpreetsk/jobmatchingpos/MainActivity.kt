@@ -10,9 +10,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -28,9 +30,15 @@ class MainActivity : ComponentActivity() {
                     val cards = remember {
                         mutableStateListOf(Card("1"), Card("2"), Card("3"), Card("4"), Card("5"))
                     }
+                    var toAdd by remember { mutableIntStateOf(6) }
                     CardStack(
                         cards = cards,
                         onAction = { cards.removeFirst() },
+                        onRestock = {
+                            cards.add(Card(toAdd.toString()))
+                            cards.add(Card((toAdd + 1).toString()))
+                            toAdd += 2
+                        },
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding)
@@ -50,6 +58,7 @@ fun GreetingPreview() {
         CardStack(
             cards = cards,
             onAction = {},
+            onRestock = {},
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)

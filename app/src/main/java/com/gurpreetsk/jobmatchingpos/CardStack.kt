@@ -31,7 +31,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.gurpreetsk.jobmatchingpos.ui.theme.JobMatchingPocTheme
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -52,11 +51,17 @@ data class Card(val id: String) {
 fun CardStack(
     cards: List<Card>,
     onAction: (id: String) -> Unit,
+    onRestock: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {
         val frontCard = cards.firstOrNull()
         val stack = cards.drop(1)
+        LaunchedEffect(key1 = stack.isEmpty()) {
+            if (stack.isEmpty()) {
+                onRestock()
+            }
+        }
 
         val rotationZ = remember { Animatable(0f) }
         val cardAlpha = remember { Animatable(1f) }
@@ -291,6 +296,7 @@ private fun CardStackPreview() {
         CardStack(
             cards = cards,
             onAction = {},
+            onRestock = {},
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)

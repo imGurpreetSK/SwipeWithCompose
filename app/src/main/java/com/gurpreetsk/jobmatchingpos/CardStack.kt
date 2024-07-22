@@ -1,7 +1,6 @@
 package com.gurpreetsk.jobmatchingpos
 
 import android.util.Log
-import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
@@ -23,8 +22,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -36,7 +37,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -45,20 +45,29 @@ import com.gurpreetsk.jobmatchingpos.ui.theme.JobMatchingPocTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.absoluteValue
 
 private const val FINAL_ROTATION_DEGREE = 15f
 private const val CARD_SWIPE_THRESHOLD = 779f // Magic number; synced with FINAL_ROTATION_DEGREE.
 
 data class Card(val id: String)
 
+@Stable
 data class CardState(
-    var rotationZ: Animatable<Float, AnimationVector1D>,
+    val rotationZ: Animatable<Float, AnimationVector1D>,
     val alpha: Animatable<Float, AnimationVector1D>,
-    var lockInfo: LockInfo
+    val dragInfo: DragInfo,
+    val lockInfo: LockInfo
 ) {
-
+    @Stable
     data class LockInfo(
         val isLocked: Boolean,
+        val direction: Direction?
+    )
+
+    @Stable
+    data class DragInfo(
+        val progress: Float,
         val direction: Direction?
     )
 
@@ -68,6 +77,7 @@ data class CardState(
     }
 }
 
+@Stable
 data class ActionButtonState(
     val offset: Pair<Animatable<Float, AnimationVector1D>, Animatable<Float, AnimationVector1D>>, // (x,y) offsets.
     val alpha: Animatable<Float, AnimationVector1D>
@@ -80,8 +90,6 @@ fun CardStack(
     onRestock: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-
     Box(modifier = modifier) {
         val frontCard = cards.firstOrNull()
         val stack = cards.drop(1)
@@ -93,7 +101,7 @@ fun CardStack(
 
         CardsStack(stack)
 
-        val cardState = remember(frontCard) { getCardState() }
+        var cardState by remember(frontCard) { mutableStateOf(getCardState()) }
         LaunchedEffect(key1 = frontCard) {
             cardState.alpha.animateTo(1f)
         }
@@ -101,13 +109,16 @@ fun CardStack(
         FrontCard(
             cardState,
             frontCard!!,
-            { direction ->
-                cardState.lockInfo = CardState.LockInfo(true, direction)
-                // TODO - remove this post verification.
-                Toast
-                    .makeText(context, direction.toString(), Toast.LENGTH_SHORT)
-                    .show()
-            }
+            // Magic calculation - synced with FINAL_ROTATION_DEGREE.
+            { progress, direction ->
+                cardState = cardState.copy(
+                    dragInfo = cardState.dragInfo.copy(
+                        progress = (progress * 7f).coerceIn(0f, 100f),
+                        direction = direction
+                    )
+                )
+            },
+            { direction -> cardState = cardState.copy(lockInfo = CardState.LockInfo(true, direction)) }
         ) { offset, coroutineScope ->
             coroutineScope.launch { cardState.rotationZ.animateTo(offset) }
         }
@@ -119,7 +130,12 @@ fun CardStack(
 private fun getCardState(): CardState {
     val rotationZ = Animatable(0f)
     val cardAlpha = Animatable(1f)
-    return CardState(rotationZ, cardAlpha, CardState.LockInfo(false, null))
+    return CardState(
+        rotationZ,
+        cardAlpha,
+        CardState.DragInfo(0f, null),
+        CardState.LockInfo(false, null)
+    )
 }
 
 @Composable
@@ -131,8 +147,73 @@ private fun BoxScope.ActionButtons(
     Row(modifier = Modifier.Companion.align(Alignment.BottomCenter)) {
         val coroutineScope = rememberCoroutineScope()
 
-        val negativeButtonState = remember { getActionButtonState() }
-        val positiveButtonState = remember { getActionButtonState() }
+        val density = LocalDensity.current
+        // All values in px.
+        val screenHeight = with(density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
+        val topMargin = with(density) { 144.dp.toPx() }
+        val selfWidth = with(density) { 32.dp.toPx() }
+        val selfHeight = with(density) { 32.dp.toPx() }
+        val spacerWidth = with(density) { 8.dp.toPx() }
+
+        val negativeButtonState by remember(frontCard) { mutableStateOf(getActionButtonState()) }
+        val positiveButtonState by remember(frontCard) { mutableStateOf(getActionButtonState()) }
+        val positiveButtonScaling = remember(frontCard) { Animatable(1f) }
+
+        LaunchedEffect(key1 = cardState.dragInfo.progress) {
+            if (cardState.lockInfo.isLocked) return@LaunchedEffect
+
+            val progress = cardState.dragInfo.progress / 100
+
+            when (cardState.dragInfo.direction) {
+                CardState.Direction.LEFT -> {
+                    coroutineScope.launch {
+                        negativeButtonState.offset.first.animateTo((selfWidth + spacerWidth) * progress)
+                    }
+                    coroutineScope.launch {
+                        negativeButtonState.offset.second.animateTo(-(screenHeight - selfHeight - topMargin) * progress)
+                    }
+                    coroutineScope.launch {
+                        positiveButtonState.offset.first.animateTo((selfWidth + spacerWidth) * progress)
+                    }
+                    coroutineScope.launch {
+                        positiveButtonState.offset.second.animateTo(-(screenHeight - selfHeight - topMargin) * progress)
+                    }
+                    coroutineScope.launch {
+                        positiveButtonState.alpha.animateTo(1 - progress)
+                    }
+                }
+
+                CardState.Direction.RIGHT -> {
+                    coroutineScope.launch {
+                        positiveButtonScaling.animateTo(1f + (0.3f) * progress)
+                        // Pulsate
+                        try {
+                            positiveButtonScaling.animateTo(
+                                1.0f,
+                                infiniteRepeatable(
+                                    animation = tween(500),
+                                    repeatMode = RepeatMode.Reverse,
+                                    initialStartOffset = StartOffset(300)
+                                )
+                            )
+                        } catch (e: Exception) {
+                            Log.e(null, e.message, e)
+                        }
+                    }
+                    coroutineScope.launch {
+                        positiveButtonState.offset.first.animateTo(selfWidth * 2 * progress)
+                    }
+                    coroutineScope.launch {
+                        positiveButtonState.offset.second.animateTo(-(screenHeight - selfHeight - topMargin) * progress)
+                    }
+                    coroutineScope.launch {
+                        negativeButtonState.alpha.animateTo(1 - progress)
+                    }
+                }
+
+                else -> { /* No-op */ }
+            }
+        }
 
         Box(
             modifier = Modifier
@@ -145,14 +226,6 @@ private fun BoxScope.ActionButtons(
                 }
                 .graphicsLayer { this.alpha = negativeButtonState.alpha.value }
         ) {
-            val density = LocalDensity.current
-            // All values in px.
-            val screenHeight = with(density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
-            val topMargin = with(density) { 144.dp.toPx() }
-            val selfWidth = with(density) { 32.dp.toPx() }
-            val selfHeight = with(density) { 32.dp.toPx() }
-            val spacerWidth = with(density) { 8.dp.toPx() }
-
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -218,15 +291,13 @@ private fun BoxScope.ActionButtons(
 
         Spacer(modifier = Modifier.padding(8.dp))
 
-        val positiveButtonScaling = remember { Animatable(1f) }
         Box(
             modifier = Modifier
                 .size(64.dp)
                 .offset {
                     IntOffset(
-                        positiveButtonState.offset.first.value.toInt(), positiveButtonState.offset.second.value
-                            .toInt
-                                ()
+                        positiveButtonState.offset.first.value.toInt(),
+                        positiveButtonState.offset.second.value.toInt()
                     )
                 }
                 .graphicsLayer {
@@ -235,13 +306,6 @@ private fun BoxScope.ActionButtons(
                     this.alpha = positiveButtonState.alpha.value
                 }
         ) {
-            val density = LocalDensity.current
-            // All values in px.
-            val screenHeight = with(density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
-            val topMargin = with(density) { 144.dp.toPx() }
-            val selfWidth = with(density) { 32.dp.toPx() }
-            val selfHeight = with(density) { 32.dp.toPx() }
-
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -327,6 +391,7 @@ private fun getActionButtonState(): ActionButtonState {
 private fun BoxScope.FrontCard(
     state: CardState,
     frontCard: Card,
+    onDragProgress: (progress: Float, direction: CardState.Direction?) -> Unit, // TODO consolidate
     onLock: (CardState.Direction) -> Unit,
     onDrag: (offset: Float, scope: CoroutineScope) -> Unit,
 ) {
@@ -347,9 +412,18 @@ private fun BoxScope.FrontCard(
         val coroutineScope = rememberCoroutineScope()
 
         LaunchedEffect(key1 = dragOffset, key2 = frontCard) {
+            val fl = dragOffset / 50
             if (!state.lockInfo.isLocked) {
-                onDrag(dragOffset / 50, coroutineScope)
+                onDrag(fl, coroutineScope)
             }
+            onDragProgress(
+                fl.absoluteValue,
+                when {
+                    fl < 0 -> CardState.Direction.LEFT
+                    fl > 0 -> CardState.Direction.RIGHT
+                    else -> null
+                }
+            )
         }
 
         Box(
@@ -369,7 +443,6 @@ private fun BoxScope.FrontCard(
                         when {
                             dragOffset > CARD_SWIPE_THRESHOLD -> onLock(CardState.Direction.RIGHT)
                             dragOffset < -CARD_SWIPE_THRESHOLD -> onLock(CardState.Direction.LEFT)
-//                            dragOffset > -swipeThreshold && dragOffset < swipeThreshold -> onLock(null)
                         }
 
                         if (change.positionChange() != Offset.Zero) {

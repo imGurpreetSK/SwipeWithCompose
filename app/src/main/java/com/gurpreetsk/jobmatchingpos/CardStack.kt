@@ -71,9 +71,9 @@ data class CardState(
         val direction: Direction?
     )
 
-    enum class Direction {
-        RIGHT,
-        LEFT
+    enum class Direction(val multiplier: Int) {
+        RIGHT(1),
+        LEFT(-1)
     }
 }
 
@@ -109,18 +109,19 @@ fun CardStack(
         FrontCard(
             cardState,
             frontCard!!,
-            // Magic calculation - synced with FINAL_ROTATION_DEGREE.
-            { progress, direction ->
-                cardState = cardState.copy(
-                    dragInfo = cardState.dragInfo.copy(
-                        progress = (progress * 7f).coerceIn(0f, 100f),
-                        direction = direction
-                    )
-                )
-            },
             { direction -> cardState = cardState.copy(lockInfo = CardState.LockInfo(true, direction)) }
-        ) { offset, coroutineScope ->
-            coroutineScope.launch { cardState.rotationZ.animateTo(offset) }
+        ) { progress, direction, coroutineScope ->
+            cardState = cardState.copy(
+                dragInfo = cardState.dragInfo.copy(
+                    // Magic calculation - synced with FINAL_ROTATION_DEGREE.
+                    progress = (progress * 7f).coerceIn(0f, 100f),
+                    direction = direction
+                )
+            )
+
+            if (!cardState.lockInfo.isLocked) {
+                coroutineScope.launch { cardState.rotationZ.animateTo(progress * (direction?.multiplier ?: 0)) }
+            }
         }
 
         ActionButtons(cardState, onAction, frontCard)
@@ -414,9 +415,8 @@ private fun getActionButtonState(): ActionButtonState {
 private fun BoxScope.FrontCard(
     state: CardState,
     frontCard: Card,
-    onDragProgress: (progress: Float, direction: CardState.Direction?) -> Unit, // TODO consolidate
     onLock: (CardState.Direction) -> Unit,
-    onDrag: (offset: Float, scope: CoroutineScope) -> Unit,
+    onDrag: (progress: Float, direction: CardState.Direction?, scope: CoroutineScope) -> Unit,
 ) {
     var dragOffset by remember { mutableFloatStateOf(0f) }
 
@@ -436,17 +436,12 @@ private fun BoxScope.FrontCard(
 
         LaunchedEffect(key1 = dragOffset, key2 = frontCard) {
             val fl = dragOffset / 50
-            if (!state.lockInfo.isLocked) {
-                onDrag(fl, coroutineScope)
+            val direction = when {
+                fl < 0 -> CardState.Direction.LEFT
+                fl > 0 -> CardState.Direction.RIGHT
+                else -> null
             }
-            onDragProgress(
-                fl.absoluteValue,
-                when {
-                    fl < 0 -> CardState.Direction.LEFT
-                    fl > 0 -> CardState.Direction.RIGHT
-                    else -> null
-                }
-            )
+            onDrag(fl.absoluteValue, direction, coroutineScope)
         }
 
         Box(

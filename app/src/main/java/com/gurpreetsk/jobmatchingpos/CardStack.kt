@@ -109,7 +109,10 @@ fun CardStack(
         FrontCard(
             cardState,
             frontCard!!,
-            { direction -> cardState = cardState.copy(lockInfo = CardState.LockInfo(true, direction)) }
+            { direction ->
+                // TODO: Event to trigger action.
+                cardState = cardState.copy(lockInfo = CardState.LockInfo(true, direction))
+            }
         ) { progress, direction, coroutineScope ->
             cardState = cardState.copy(
                 dragInfo = cardState.dragInfo.copy(

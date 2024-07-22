@@ -161,6 +161,7 @@ private fun BoxScope.ActionButtons(
 
         LaunchedEffect(key1 = cardState.dragInfo.progress) {
             if (cardState.lockInfo.isLocked) return@LaunchedEffect
+            Log.i("HIT", cardState.dragInfo.toString())
 
             val progress = cardState.dragInfo.progress / 100
 
@@ -211,7 +212,29 @@ private fun BoxScope.ActionButtons(
                     }
                 }
 
-                else -> { /* No-op */ }
+                else -> {
+                    coroutineScope.launch {
+                        negativeButtonState.offset.first.animateTo(0f)
+                    }
+                    coroutineScope.launch {
+                        negativeButtonState.offset.second.animateTo(0f)
+                    }
+                    coroutineScope.launch {
+                        positiveButtonState.offset.first.animateTo(0f)
+                    }
+                    coroutineScope.launch {
+                        positiveButtonState.offset.second.animateTo(0f)
+                    }
+                    coroutineScope.launch {
+                        positiveButtonState.alpha.animateTo(1f)
+                    }
+                    coroutineScope.launch {
+                        negativeButtonState.alpha.animateTo(1f)
+                    }
+                    coroutineScope.launch {
+                        positiveButtonScaling.animateTo(1f)
+                    }
+                }
             }
         }
 

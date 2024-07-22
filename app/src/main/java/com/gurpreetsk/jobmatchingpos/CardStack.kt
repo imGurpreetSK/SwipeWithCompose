@@ -23,11 +23,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -106,14 +108,18 @@ fun CardStack(
             cardState.alpha.animateTo(1f)
         }
 
+        val coroutineScope = rememberCoroutineScope()
         FrontCard(
             cardState,
             frontCard!!,
-            { direction ->
-                // TODO: Event to trigger action.
-                cardState = cardState.copy(lockInfo = CardState.LockInfo(true, direction))
+            { id, direction ->
+                cardState = cardState.copy(lockInfo = CardState.LockInfo(isLocked = true, direction))
+                coroutineScope.launch {
+                    delay(if (direction == CardState.Direction.LEFT) 1000 else 3000)
+                    onAction(id)
+                }
             }
-        ) { progress, direction, coroutineScope ->
+        ) { progress, direction ->
             cardState = cardState.copy(
                 dragInfo = cardState.dragInfo.copy(
                     // Magic calculation - synced with FINAL_ROTATION_DEGREE.
@@ -165,7 +171,6 @@ private fun BoxScope.ActionButtons(
 
         LaunchedEffect(key1 = cardState.dragInfo.progress) {
             if (cardState.lockInfo.isLocked) return@LaunchedEffect
-            Log.i("HIT", cardState.dragInfo.toString())
 
             val progress = cardState.dragInfo.progress / 100
 
@@ -418,12 +423,12 @@ private fun getActionButtonState(): ActionButtonState {
 private fun BoxScope.FrontCard(
     state: CardState,
     frontCard: Card,
-    onLock: (CardState.Direction) -> Unit,
-    onDrag: (progress: Float, direction: CardState.Direction?, scope: CoroutineScope) -> Unit,
+    onLock: (id: String, direction: CardState.Direction) -> Unit,
+    onDrag: (progress: Float, direction: CardState.Direction?) -> Unit,
 ) {
     var dragOffset by remember { mutableFloatStateOf(0f) }
 
-    val sensitivityFactor = 5f
+    val sensitivityFactor = 12f
 
     Box(
         modifier = Modifier
@@ -435,8 +440,6 @@ private fun BoxScope.FrontCard(
                 this.alpha = state.alpha.value
             }
     ) {
-        val coroutineScope = rememberCoroutineScope()
-
         LaunchedEffect(key1 = dragOffset, key2 = frontCard) {
             val fl = dragOffset / 50
             val direction = when {
@@ -444,9 +447,12 @@ private fun BoxScope.FrontCard(
                 fl > 0 -> CardState.Direction.RIGHT
                 else -> null
             }
-            onDrag(fl.absoluteValue, direction, coroutineScope)
+            onDrag(fl.absoluteValue, direction)
         }
 
+        // TODO(gs) - This is probably required due to lack of compose knowledge.
+        // We want to trigger onLock(...) only once and then reset UI state post successful action.
+        var shouldNotify by remember(frontCard) { mutableStateOf(true) }
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -461,9 +467,17 @@ private fun BoxScope.FrontCard(
                         if (state.lockInfo.isLocked) return@detectHorizontalDragGestures
 
                         dragOffset += (dragAmount / density) * sensitivityFactor
-                        when {
-                            dragOffset > CARD_SWIPE_THRESHOLD -> onLock(CardState.Direction.RIGHT)
-                            dragOffset < -CARD_SWIPE_THRESHOLD -> onLock(CardState.Direction.LEFT)
+                        if (shouldNotify) {
+                            when {
+                                dragOffset > CARD_SWIPE_THRESHOLD -> {
+                                    onLock(frontCard.id, CardState.Direction.RIGHT)
+                                    shouldNotify = false
+                                }
+                                dragOffset < -CARD_SWIPE_THRESHOLD -> {
+                                    onLock(frontCard.id, CardState.Direction.LEFT)
+                                    shouldNotify = false
+                                }
+                            }
                         }
 
                         if (change.positionChange() != Offset.Zero) {

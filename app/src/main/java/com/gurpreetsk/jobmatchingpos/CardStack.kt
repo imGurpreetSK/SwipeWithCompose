@@ -44,7 +44,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 
-const val MAX_PROGRESS = 98f
+const val LOCK_THRESHOLD = 98f
 
 private const val FINAL_ROTATION_DEGREE = 15f
 private const val CARD_SWIPE_THRESHOLD = 779f // Magic number for card swipe; directly depends on FINAL_ROTATION_DEGREE.
@@ -408,12 +408,12 @@ private fun BoxScope.FrontCard(
         LaunchedEffect(key1 = progressVector) {
             if (shouldNotify) {
                 when {
-                    progressVector > MAX_PROGRESS -> {
+                    progressVector > LOCK_THRESHOLD -> {
                         onLock(frontCard.id, CardState.Direction.RIGHT)
                         shouldNotify = false
                     }
 
-                    progressVector <= -MAX_PROGRESS -> {
+                    progressVector <= -LOCK_THRESHOLD -> {
                         onLock(frontCard.id, CardState.Direction.LEFT)
                         shouldNotify = false
                     }

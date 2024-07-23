@@ -17,7 +17,7 @@ data class CardState(
     data class Progress(
         val value: Float,
         val direction: Direction?,
-        val isLocked: Boolean = value.absoluteValue >= MAX_PROGRESS
+        val isLocked: Boolean = value.absoluteValue >= LOCK_THRESHOLD
     )
 
     enum class Direction(val multiplier: Int) {

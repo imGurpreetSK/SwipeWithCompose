@@ -193,7 +193,6 @@ private fun BoxScope.ActionButtons(
                         positiveButtonScaling.animateTo(1f + (0.3f) * progress)
                         // Pulsate
                         try {
-                            // TODO - check progress?
                             positiveButtonScaling.animateTo(
                                 1.0f,
                                 infiniteRepeatable(
@@ -450,7 +449,7 @@ private fun BoxScope.FrontCard(
             onDrag(progressVector.absoluteValue, direction)
         }
 
-        // TODO(gs) - This is probably required due to lack of compose knowledge.
+        // TODO(gs) - Find a better way. This is probably required due to lack of compose knowledge.
         // We want to trigger onLock(...) only once and then reset UI state post successful action.
         var shouldNotify by remember(key1 = frontCard) { mutableStateOf(true) }
         LaunchedEffect(key1 = progressVector) {

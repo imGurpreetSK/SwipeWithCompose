@@ -23,13 +23,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,14 +42,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.gurpreetsk.jobmatchingpos.ui.theme.JobMatchingPocTheme
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 
+private const val MAX_PROGRESS = 98f
 private const val FINAL_ROTATION_DEGREE = 15f
-private const val CARD_SWIPE_THRESHOLD = 779f // Magic number; synced with FINAL_ROTATION_DEGREE.
-private const val ROTATION_MULTIPLIER = 7f // Magic number for calculation; synced with FINAL_ROTATION_DEGREE.
+private const val CARD_SWIPE_THRESHOLD = 779f // Magic number for card swipe; directly depends on FINAL_ROTATION_DEGREE.
 
 data class Card(val id: String)
 
@@ -59,19 +56,13 @@ data class Card(val id: String)
 data class CardState(
     val rotationZ: Animatable<Float, AnimationVector1D>,
     val alpha: Animatable<Float, AnimationVector1D>,
-    val dragInfo: DragInfo,
-    val lockInfo: LockInfo
+    val progress: Progress
 ) {
     @Stable
-    data class LockInfo(
-        val isLocked: Boolean,
-        val direction: Direction?
-    )
-
-    @Stable
-    data class DragInfo(
-        val progress: Float,
-        val direction: Direction?
+    data class Progress(
+        val value: Float,
+        val direction: Direction?,
+        val isLocked: Boolean = value.absoluteValue >= MAX_PROGRESS
     )
 
     enum class Direction(val multiplier: Int) {
@@ -114,7 +105,7 @@ fun CardStack(
             cardState,
             frontCard!!,
             { id, direction ->
-                cardState = cardState.copy(lockInfo = CardState.LockInfo(isLocked = true, direction))
+                cardState = cardState.copy(progress = CardState.Progress(100f, direction))
                 coroutineScope.launch {
                     delay(if (direction == CardState.Direction.LEFT) 1000 else 3000)
                     onAction(id)
@@ -122,14 +113,20 @@ fun CardStack(
             }
         ) { progress, direction ->
             cardState = cardState.copy(
-                dragInfo = cardState.dragInfo.copy(
-                    progress = (progress * ROTATION_MULTIPLIER).coerceIn(0f, 100f),
+                progress = cardState.progress.copy(
+                    value = progress.absoluteValue.coerceIn(0f, 100f),
                     direction = direction
                 )
             )
 
-            if (!cardState.lockInfo.isLocked) {
-                coroutineScope.launch { cardState.rotationZ.animateTo(progress * (direction?.multiplier ?: 0)) }
+            if (!cardState.progress.isLocked) {
+                coroutineScope.launch {
+                    val rotation = progress / 6.6f // Magic number for degrees of rotation for card: 0 - ~15.
+
+                    @Suppress("NAME_SHADOWING") // Explicit name shadowing.
+                    val direction = direction?.multiplier?.toFloat() ?: 0f
+                    cardState.rotationZ.animateTo(rotation * direction)
+                }
             }
         }
 
@@ -140,11 +137,11 @@ fun CardStack(
 private fun getCardState(): CardState {
     val rotationZ = Animatable(0f)
     val cardAlpha = Animatable(1f)
+
     return CardState(
         rotationZ,
         cardAlpha,
-        CardState.DragInfo(0f, null),
-        CardState.LockInfo(false, null)
+        CardState.Progress(0f, null)
     )
 }
 
@@ -169,12 +166,10 @@ private fun BoxScope.ActionButtons(
         val positiveButtonState by remember(frontCard) { mutableStateOf(getActionButtonState()) }
         val positiveButtonScaling = remember(frontCard) { Animatable(1f) }
 
-        LaunchedEffect(key1 = cardState.dragInfo.progress) {
-            if (cardState.lockInfo.isLocked) return@LaunchedEffect
+        LaunchedEffect(key1 = cardState.progress.value) {
+            val progress = cardState.progress.value / 100
 
-            val progress = cardState.dragInfo.progress / 100
-
-            when (cardState.dragInfo.direction) {
+            when (cardState.progress.direction) {
                 CardState.Direction.LEFT -> {
                     coroutineScope.launch {
                         negativeButtonState.offset.first.animateTo((selfWidth + spacerWidth) * progress)
@@ -198,6 +193,7 @@ private fun BoxScope.ActionButtons(
                         positiveButtonScaling.animateTo(1f + (0.3f) * progress)
                         // Pulsate
                         try {
+                            // TODO - check progress?
                             positiveButtonScaling.animateTo(
                                 1.0f,
                                 infiniteRepeatable(
@@ -222,6 +218,8 @@ private fun BoxScope.ActionButtons(
                 }
 
                 else -> {
+                    if (cardState.progress.isLocked) return@LaunchedEffect
+
                     coroutineScope.launch {
                         negativeButtonState.offset.first.animateTo(0f)
                     }
@@ -385,7 +383,7 @@ private fun BoxScope.ActionButtons(
                         // Cleanup
                         coroutineScope.launch {
                             delay(5000)
-                            cardState.rotationZ.snapTo(0f)
+                            cardState.rotationZ.animateTo(0f)
                         }
                         coroutineScope.launch {
                             delay(5000)
@@ -440,19 +438,37 @@ private fun BoxScope.FrontCard(
                 this.alpha = state.alpha.value
             }
     ) {
-        LaunchedEffect(key1 = dragOffset, key2 = frontCard) {
-            val fl = dragOffset / 50
+        val progressVector by remember(key1 = dragOffset, key2 = frontCard) {
+            mutableFloatStateOf(((dragOffset / CARD_SWIPE_THRESHOLD) * 100).coerceIn(-100f, 100f))
+        }
+        LaunchedEffect(key1 = progressVector) {
             val direction = when {
-                fl < 0 -> CardState.Direction.LEFT
-                fl > 0 -> CardState.Direction.RIGHT
+                progressVector < 0 -> CardState.Direction.LEFT
+                progressVector > 0 -> CardState.Direction.RIGHT
                 else -> null
             }
-            onDrag(fl.absoluteValue, direction)
+            onDrag(progressVector.absoluteValue, direction)
         }
 
         // TODO(gs) - This is probably required due to lack of compose knowledge.
         // We want to trigger onLock(...) only once and then reset UI state post successful action.
-        var shouldNotify by remember(frontCard) { mutableStateOf(true) }
+        var shouldNotify by remember(key1 = frontCard) { mutableStateOf(true) }
+        LaunchedEffect(key1 = progressVector) {
+            if (shouldNotify) {
+                when {
+                    progressVector > MAX_PROGRESS -> {
+                        onLock(frontCard.id, CardState.Direction.RIGHT)
+                        shouldNotify = false
+                    }
+
+                    progressVector <= -MAX_PROGRESS -> {
+                        onLock(frontCard.id, CardState.Direction.LEFT)
+                        shouldNotify = false
+                    }
+                }
+            }
+        }
+
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -464,22 +480,7 @@ private fun BoxScope.FrontCard(
                         onDragEnd = { dragOffset = 0f },
                         onDragCancel = { dragOffset = 0f },
                     ) { change, dragAmount ->
-                        if (state.lockInfo.isLocked) return@detectHorizontalDragGestures
-
                         dragOffset += (dragAmount / density) * sensitivityFactor
-                        if (shouldNotify) {
-                            when {
-                                dragOffset > CARD_SWIPE_THRESHOLD -> {
-                                    onLock(frontCard.id, CardState.Direction.RIGHT)
-                                    shouldNotify = false
-                                }
-
-                                dragOffset < -CARD_SWIPE_THRESHOLD -> {
-                                    onLock(frontCard.id, CardState.Direction.LEFT)
-                                    shouldNotify = false
-                                }
-                            }
-                        }
 
                         if (change.positionChange() != Offset.Zero) {
                             change.consume()

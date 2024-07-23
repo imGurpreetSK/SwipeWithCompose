@@ -428,7 +428,7 @@ private fun BoxScope.FrontCard(
 ) {
     var dragOffset by remember(frontCard) { mutableFloatStateOf(0f) }
 
-    val sensitivityFactor = 12f
+    val sensitivityFactor = 5f
 
     Box(
         modifier = Modifier
@@ -473,6 +473,7 @@ private fun BoxScope.FrontCard(
                                     onLock(frontCard.id, CardState.Direction.RIGHT)
                                     shouldNotify = false
                                 }
+
                                 dragOffset < -CARD_SWIPE_THRESHOLD -> {
                                     onLock(frontCard.id, CardState.Direction.LEFT)
                                     shouldNotify = false

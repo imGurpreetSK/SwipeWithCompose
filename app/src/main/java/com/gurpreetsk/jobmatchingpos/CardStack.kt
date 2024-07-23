@@ -426,7 +426,7 @@ private fun BoxScope.FrontCard(
     onLock: (id: String, direction: CardState.Direction) -> Unit,
     onDrag: (progress: Float, direction: CardState.Direction?) -> Unit,
 ) {
-    var dragOffset by remember { mutableFloatStateOf(0f) }
+    var dragOffset by remember(frontCard) { mutableFloatStateOf(0f) }
 
     val sensitivityFactor = 12f
 

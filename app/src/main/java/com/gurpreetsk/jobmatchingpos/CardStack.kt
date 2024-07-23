@@ -3,7 +3,6 @@ package com.gurpreetsk.jobmatchingpos
 import android.util.Log
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.StartOffset
 import androidx.compose.animation.core.infiniteRepeatable
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,59 +44,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 
-private const val MAX_PROGRESS = 98f
+const val MAX_PROGRESS = 98f
+
 private const val FINAL_ROTATION_DEGREE = 15f
 private const val CARD_SWIPE_THRESHOLD = 779f // Magic number for card swipe; directly depends on FINAL_ROTATION_DEGREE.
-
-data class Card(val id: String)
-
-@Stable
-data class CardState(
-    val rotationZ: Animatable<Float, AnimationVector1D>,
-    val alpha: Animatable<Float, AnimationVector1D>,
-    val progress: Progress
-) {
-    @Stable
-    data class Progress(
-        val value: Float,
-        val direction: Direction?,
-        val isLocked: Boolean = value.absoluteValue >= MAX_PROGRESS
-    )
-
-    enum class Direction(val multiplier: Int) {
-        RIGHT(1),
-        LEFT(-1)
-    }
-
-    companion object {
-        fun default(): CardState {
-            val rotationZ = Animatable(0f)
-            val cardAlpha = Animatable(1f)
-
-            return CardState(
-                rotationZ,
-                cardAlpha,
-                Progress(0f, null)
-            )
-        }
-    }
-}
-
-@Stable
-data class ActionButtonState(
-    val offset: Pair<Animatable<Float, AnimationVector1D>, Animatable<Float, AnimationVector1D>>, // (x,y) offsets.
-    val alpha: Animatable<Float, AnimationVector1D>
-) {
-    companion object {
-        fun default(): ActionButtonState {
-            val negativeButtonOffsetX = Animatable(0f)
-            val negativeButtonOffsetY = Animatable(0f)
-            val negativeButtonAlpha = Animatable(1f)
-
-            return ActionButtonState(negativeButtonOffsetX to negativeButtonOffsetY, negativeButtonAlpha)
-        }
-    }
-}
 
 @Composable
 fun CardStack(

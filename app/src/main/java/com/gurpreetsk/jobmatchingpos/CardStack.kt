@@ -51,6 +51,7 @@ import kotlin.math.absoluteValue
 
 private const val FINAL_ROTATION_DEGREE = 15f
 private const val CARD_SWIPE_THRESHOLD = 779f // Magic number; synced with FINAL_ROTATION_DEGREE.
+private const val ROTATION_MULTIPLIER = 7f // Magic number for calculation; synced with FINAL_ROTATION_DEGREE.
 
 data class Card(val id: String)
 
@@ -122,8 +123,7 @@ fun CardStack(
         ) { progress, direction ->
             cardState = cardState.copy(
                 dragInfo = cardState.dragInfo.copy(
-                    // Magic calculation - synced with FINAL_ROTATION_DEGREE.
-                    progress = (progress * 7f).coerceIn(0f, 100f),
+                    progress = (progress * ROTATION_MULTIPLIER).coerceIn(0f, 100f),
                     direction = direction
                 )
             )

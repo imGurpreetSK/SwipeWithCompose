@@ -69,13 +69,36 @@ data class CardState(
         RIGHT(1),
         LEFT(-1)
     }
+
+    companion object {
+        fun default(): CardState {
+            val rotationZ = Animatable(0f)
+            val cardAlpha = Animatable(1f)
+
+            return CardState(
+                rotationZ,
+                cardAlpha,
+                Progress(0f, null)
+            )
+        }
+    }
 }
 
 @Stable
 data class ActionButtonState(
     val offset: Pair<Animatable<Float, AnimationVector1D>, Animatable<Float, AnimationVector1D>>, // (x,y) offsets.
     val alpha: Animatable<Float, AnimationVector1D>
-)
+) {
+    companion object {
+        fun default(): ActionButtonState {
+            val negativeButtonOffsetX = Animatable(0f)
+            val negativeButtonOffsetY = Animatable(0f)
+            val negativeButtonAlpha = Animatable(1f)
+
+            return ActionButtonState(negativeButtonOffsetX to negativeButtonOffsetY, negativeButtonAlpha)
+        }
+    }
+}
 
 @Composable
 fun CardStack(
@@ -95,7 +118,7 @@ fun CardStack(
 
         CardsStack(stack)
 
-        var cardState by remember(frontCard) { mutableStateOf(getCardState()) }
+        var cardState by remember(frontCard) { mutableStateOf(CardState.default()) }
         LaunchedEffect(key1 = frontCard) {
             cardState.alpha.animateTo(1f)
         }
@@ -134,17 +157,6 @@ fun CardStack(
     }
 }
 
-private fun getCardState(): CardState {
-    val rotationZ = Animatable(0f)
-    val cardAlpha = Animatable(1f)
-
-    return CardState(
-        rotationZ,
-        cardAlpha,
-        CardState.Progress(0f, null)
-    )
-}
-
 @Composable
 private fun BoxScope.ActionButtons(
     cardState: CardState,
@@ -162,8 +174,8 @@ private fun BoxScope.ActionButtons(
         val selfHeight = with(density) { 32.dp.toPx() }
         val spacerWidth = with(density) { 8.dp.toPx() }
 
-        val negativeButtonState by remember(frontCard) { mutableStateOf(getActionButtonState()) }
-        val positiveButtonState by remember(frontCard) { mutableStateOf(getActionButtonState()) }
+        val negativeButtonState by remember(frontCard) { mutableStateOf(ActionButtonState.default()) }
+        val positiveButtonState by remember(frontCard) { mutableStateOf(ActionButtonState.default()) }
         val positiveButtonScaling = remember(frontCard) { Animatable(1f) }
 
         LaunchedEffect(key1 = cardState.progress.value) {
@@ -406,14 +418,6 @@ private fun BoxScope.ActionButtons(
             }
         }
     }
-}
-
-private fun getActionButtonState(): ActionButtonState {
-    val negativeButtonOffsetX = Animatable(0f)
-    val negativeButtonOffsetY = Animatable(0f)
-    val negativeButtonAlpha = Animatable(1f)
-
-    return ActionButtonState(negativeButtonOffsetX to negativeButtonOffsetY, negativeButtonAlpha)
 }
 
 @Composable

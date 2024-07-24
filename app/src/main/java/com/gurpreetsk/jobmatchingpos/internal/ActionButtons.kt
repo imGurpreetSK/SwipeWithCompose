@@ -37,6 +37,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val FINAL_ROTATION_DEGREE = 15f
+private const val DEFAULT_DELAY = 2900L
 
 @Composable
 fun BoxScope.ActionButtons(
@@ -181,27 +182,27 @@ fun BoxScope.ActionButtons(
 
                         // Cleanup
                         coroutineScope.launch {
-                            delay(2000)
+                            delay(DEFAULT_DELAY)
                             cardState.rotationZ.animateTo(0f)
                         }
                         coroutineScope.launch {
-                            delay(2000)
+                            delay(DEFAULT_DELAY)
                             negativeButtonState.offset.first.animateTo(0f)
                         }
                         coroutineScope.launch {
-                            delay(2000)
+                            delay(DEFAULT_DELAY)
                             negativeButtonState.offset.second.animateTo(0f)
                         }
                         coroutineScope.launch {
-                            delay(2000)
+                            delay(DEFAULT_DELAY)
                             positiveButtonState.offset.first.animateTo(0f)
                         }
                         coroutineScope.launch {
-                            delay(2000)
+                            delay(DEFAULT_DELAY)
                             positiveButtonState.offset.second.animateTo(0f)
                         }
                         coroutineScope.launch {
-                            delay(2000)
+                            delay(DEFAULT_DELAY)
                             positiveButtonState.alpha.animateTo(1f)
                         }
                     }
@@ -272,23 +273,23 @@ fun BoxScope.ActionButtons(
 
                         // Cleanup
                         coroutineScope.launch {
-                            delay(5000)
+                            delay(DEFAULT_DELAY)
                             cardState.rotationZ.animateTo(0f)
                         }
                         coroutineScope.launch {
-                            delay(5000)
+                            delay(DEFAULT_DELAY)
                             positiveButtonScaling.animateTo(1f)
                         }
                         coroutineScope.launch {
-                            delay(5000)
+                            delay(DEFAULT_DELAY)
                             positiveButtonState.offset.first.animateTo(0f)
                         }
                         coroutineScope.launch {
-                            delay(5000)
+                            delay(DEFAULT_DELAY)
                             positiveButtonState.offset.second.animateTo(0f)
                         }
                         coroutineScope.launch {
-                            delay(5000)
+                            delay(DEFAULT_DELAY)
                             negativeButtonState.alpha.animateTo(1f)
                         }
                     }

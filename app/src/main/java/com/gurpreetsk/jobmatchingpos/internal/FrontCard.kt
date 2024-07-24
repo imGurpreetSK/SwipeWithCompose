@@ -29,7 +29,7 @@ import kotlin.math.absoluteValue
 
 private const val CARD_SWIPE_THRESHOLD = 779f // Magic number for card swipe; directly depends on FINAL_ROTATION_DEGREE.
 private const val SENSITIVITY_FACTOR = 5f
-private const val OFFSET_THRESHOLD = 30
+private const val OFFSET_THRESHOLD = 20
 
 @Composable
 fun BoxScope.FrontCard(

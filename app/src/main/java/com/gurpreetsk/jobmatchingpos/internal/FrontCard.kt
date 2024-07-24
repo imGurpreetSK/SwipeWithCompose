@@ -28,6 +28,7 @@ import com.gurpreetsk.jobmatchingpos.LOCK_THRESHOLD
 import kotlin.math.absoluteValue
 
 private const val CARD_SWIPE_THRESHOLD = 779f // Magic number for card swipe; directly depends on FINAL_ROTATION_DEGREE.
+private const val SENSITIVITY_FACTOR = 5f
 
 @Composable
 fun BoxScope.FrontCard(
@@ -37,8 +38,6 @@ fun BoxScope.FrontCard(
     onDrag: (progress: Float, direction: CardState.Direction?) -> Unit,
 ) {
     var dragOffset by remember(frontCard) { mutableFloatStateOf(0f) }
-
-    val sensitivityFactor = 5f
 
     Box(
         modifier = Modifier
@@ -87,20 +86,33 @@ fun BoxScope.FrontCard(
                 .matchParentSize()
                 .background(Color.Blue)
                 .align(Alignment.Center)
-                .pointerInput(frontCard.id) {
-                    detectHorizontalDragGestures(
-                        onDragEnd = { dragOffset = 0f },
-                        onDragCancel = { dragOffset = 0f },
-                    ) { change, dragAmount ->
-                        dragOffset += (dragAmount / density) * sensitivityFactor
-
-                        if (change.positionChange() != Offset.Zero) {
-                            change.consume()
-                        }
-                    }
+                .detectHorizontalDragGesturesIfUnlocked(state, frontCard, { dragOffset = 0f }) {
+                    dragOffset += it
                 }
         ) {
             Text(text = frontCard.id)
+        }
+    }
+}
+
+private fun Modifier.detectHorizontalDragGesturesIfUnlocked(
+    state: CardState,
+    frontCard: Card,
+    resetOffset: () -> Unit,
+    updateOffset: (offset: Float) -> Unit
+): Modifier {
+    if (state.progress.isLocked) return this
+
+    return pointerInput(frontCard.id) {
+        detectHorizontalDragGestures(
+            onDragEnd = { resetOffset() },
+            onDragCancel = { resetOffset() },
+        ) { change, dragAmount ->
+            updateOffset((dragAmount / density) * SENSITIVITY_FACTOR)
+
+            if (change.positionChange() != Offset.Zero) {
+                change.consume()
+            }
         }
     }
 }

@@ -41,8 +41,8 @@ private const val FINAL_ROTATION_DEGREE = 15f
 @Composable
 fun BoxScope.ActionButtons(
     cardState: CardState,
-    onAction: (id: String) -> Unit,
-    frontCard: Card
+    frontCard: Card,
+    onAction: suspend (id: String, direction: CardState.Direction) -> Unit
 ) {
     Row(modifier = Modifier.Companion.align(Alignment.BottomCenter)) {
         val coroutineScope = rememberCoroutineScope()
@@ -175,8 +175,7 @@ fun BoxScope.ActionButtons(
 
                         // Action
                         coroutineScope.launch {
-                            delay(2000)
-                            onAction(frontCard.id)
+                            onAction(frontCard.id, CardState.Direction.LEFT)
                             cardState.alpha.animateTo(0f)
                         }
 
@@ -267,8 +266,7 @@ fun BoxScope.ActionButtons(
 
                         // Action
                         coroutineScope.launch {
-                            delay(5000)
-                            onAction(frontCard.id)
+                            onAction(frontCard.id, CardState.Direction.RIGHT)
                             cardState.alpha.animateTo(0f)
                         }
 

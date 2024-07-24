@@ -76,7 +76,11 @@ fun CardStack(
             }
         }
 
-        ActionButtons(cardState, onAction, frontCard)
+        ActionButtons(cardState, frontCard) { id, direction ->
+            cardState = cardState.copy(progress = CardState.Progress(100f, direction))
+            delay(3000)
+            onAction(id)
+        }
     }
 }
 
